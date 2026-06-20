@@ -100,6 +100,27 @@ class KeywordControllerTest extends SuluTestCase
         $this->assertEquals('keyword2', $response->_embedded->category_keywords[1]->keyword);
     }
 
+    public function testCgetSortedByCount(): void
+    {
+        $this->testPost('keyword1', 'de', $this->category1->getId());
+        $this->testPost('keyword2', 'de', $this->category1->getId());
+
+        // sorting by a count field must not add the aggregate to the GROUP BY
+        // clause, otherwise the generated query is invalid (see #8200)
+        $this->client->jsonRequest(
+            'GET',
+            '/api/categories/' . $this->category1->getId() . '/keywords?locale=de&sortBy=categoryTranslationCount&sortOrder=asc'
+        );
+
+        $this->assertHttpStatusCode(200, $this->client->getResponse());
+
+        $content = $this->client->getResponse()->getContent();
+        $this->assertIsString($content);
+        $response = \json_decode($content, true, 512, \JSON_THROW_ON_ERROR);
+        $this->assertIsArray($response);
+        $this->assertEquals(2, $response['total']);
+    }
+
     public function testGet(): void
     {
         $keyword = $this->testPost('keyword1', 'de', $this->category1->getId());
